@@ -12,6 +12,7 @@ import ARKit
 class ViewController: UIViewController, ARSKViewDelegate {
     
     @IBOutlet var sceneView: ARSKView!
+    @IBOutlet weak var hudLabel: UILabel!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -50,24 +51,71 @@ class ViewController: UIViewController, ARSKViewDelegate {
     
     func view(_ view: ARSKView, nodeFor anchor: ARAnchor) -> SKNode? {
         // Create and configure a node for the anchor added to the view's session.
-        let labelNode = SKLabelNode(text: "👾")
-        labelNode.horizontalAlignmentMode = .center
-        labelNode.verticalAlignmentMode = .center
-        return labelNode;
+        // 1
+        let spawnNode = SKNode()
+        spawnNode.name = "SpawnPoint"
+        // 2
+        let boxNode = SKLabelNode(text: "🆘")
+        boxNode.verticalAlignmentMode = .center
+        boxNode.horizontalAlignmentMode = .center
+        boxNode.zPosition = 100
+        boxNode.setScale(0)
+        spawnNode.addChild(boxNode)
+        // 3
+        let startSoundAction = SKAction.playSoundFileNamed(
+          "SoundEffects/GameStart.wav", waitForCompletion: false)
+        let scaleInAction = SKAction.scale(to: 1.5, duration: 0.8)
+        boxNode.run(SKAction.sequence(
+          [startSoundAction, scaleInAction]))
+        return spawnNode
     }
     
     func session(_ session: ARSession, didFailWithError error: Error) {
         // Present an error message to the user
-        
+        showAlert("Session Failure", error.localizedDescription)
     }
     
     func sessionWasInterrupted(_ session: ARSession) {
         // Inform the user that the session has been interrupted, for example, by presenting an overlay
-        
+        showAlert("AR Session", "Session was interrupted!")
+
     }
     
     func sessionInterruptionEnded(_ session: ARSession) {
         // Reset tracking and/or remove existing anchors if consistent tracking is required
-        
+        let scene = sceneView.scene as! Scene
+        scene.startGame()
+
+    }
+    
+    func session(_ session: ARSession,
+      cameraDidChangeTrackingState camera: ARCamera) {
+    // 1
+    switch camera.trackingState {
+      case .normal: break
+      case .notAvailable:
+        showAlert("Tracking Limited", "AR not available")
+        break
+      // 2
+      case .limited(let reason):
+        switch reason {
+        case .initializing, .relocalizing: break
+        case .excessiveMotion:
+          showAlert("Tracking Limited", "Excessive motion!")
+          break
+        case .insufficientFeatures:
+          showAlert("Tracking Limited", "Insufficient features!")
+          break
+        default: break
+        }
+      }
+    }
+    
+    func showAlert(_ title: String, _ message: String) {
+      let alert = UIAlertController(title: title, message: message,
+        preferredStyle: .alert)
+      alert.addAction(UIAlertAction(title: "OK",
+        style: UIAlertAction.Style.default, handler: nil))
+      self.present(alert, animated: true, completion: nil)
     }
 }
